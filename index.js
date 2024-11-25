@@ -13,10 +13,10 @@ const port = 3000;
 app.use(bodyParser.json());
 
 const dbConfig = {
-    host: "localhost",
-    user: "root",
-    password: "kongji0717!",
-    database: "roblox",
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
 };
 
 // 데이터베이스 연결 함수
