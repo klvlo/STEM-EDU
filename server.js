@@ -7,7 +7,7 @@ import mysql from "mysql2/promise"; // promise 버전 사용
 dotenv.config();
 
 const app = express();
-const port = 3000;
+const port = 8080;
 
 // POST 요청의 body를 JSON으로 파싱
 app.use(bodyParser.json());
@@ -259,10 +259,6 @@ app.post("/save-score", async (req, res) => {
 // 퀴즈 시도 결과 저장 엔드포인트
 app.post("/save-attempt", async (req, res) => {
     const { user_id, quiz_id, is_correct } = req.body;
-    console.log(user_id);
-    console.log(quiz_id);
-    console.log(is_correct);
-    console.log(req.body);
 
     if (user_id === undefined || quiz_id === undefined || is_correct === undefined) {
         return res.status(400).send("user_id, quiz_id 또는 is_correct가 유효하지 않습니다.");
