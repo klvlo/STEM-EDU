@@ -5,10 +5,10 @@ local ChatService = game:GetService("Chat")
 local teacher = game.Workspace:FindFirstChild("Teacher")
 
 -- 서버 URL 설정
-local mainApiUrl = "http://localhost:3000"
-local gptApiUrl = "http://localhost:3000/chat"
-local scoreApiUrl = "http://localhost:3000/save-score"
-local attemptApiUrl = "http://localhost:3000/save-attempt"
+local mainApiUrl = "http://spaceedu-env.eba-eipmd83p.ap-northeast-2.elasticbeanstalk.com"
+local gptApiUrl = "http://spaceedu-env.eba-eipmd83p.ap-northeast-2.elasticbeanstalk.com/chat"
+local scoreApiUrl = "http://spaceedu-env.eba-eipmd83p.ap-northeast-2.elasticbeanstalk.com/save-score"
+local attemptApiUrl = "http://spaceedu-env.eba-eipmd83p.ap-northeast-2.elasticbeanstalk.com/save-attempt"
 
 -- BindableEvent 설정
 local function getOrCreateBindableEvent(eventName)
@@ -73,7 +73,6 @@ end
 
 -- NPC와의 채팅 처리
 local teacher = workspace:FindFirstChild("Teacher")
-
 local function sendChatMessage(message)
 	if teacher and teacher:FindFirstChild("Head") then
 		ChatService:Chat(teacher.Head, message, Enum.ChatColor.Blue)
@@ -82,20 +81,15 @@ end
 
 local function handleNpcCommand(player, args)
 	-- 질문 내용은 명령 인수에서 두 번째 인수로 받음
-	local userMessage = args  -- 첫 번째 인수는 'npc!'이므로 두 번째 인수부터 시작
-
+	local userMessage = args -- 첫 번째 인수는 'npc!'이므로 두 번째 인수부터 시작
 	-- 질문이 존재하는지 확인
 	if userMessage and userMessage ~= "" then
-		local data = {
-			message = userMessage  -- 사용자 질문을 서버로 보냄
+		local data = { message = userMessage -- 사용자 질문을 서버로 보냄
 		}
-
 		-- 서버에 요청 보내기
 		local success, response = sendRequest(mainApiUrl .. "/chat", data)
-
 		if success then
 			local decodedResponse = game:GetService("HttpService"):JSONDecode(response)
-
 			if decodedResponse.message then
 				-- GPT 응답을 받았다면
 				MoreResponseRemote:FireClient(player, decodedResponse.message)
@@ -110,21 +104,18 @@ local function handleNpcCommand(player, args)
 	end
 end
 
-
--- 서버 코드에서 전송되는 메시지 확인
+-- 추가 설명 제공
 local function handleMoreCommand(player, quizId)
 	-- quizId가 "new"일 경우
 	if quizId == "new" then
 		print("새로운 추가 설명 요청: 사용자 ID =", player.UserId) -- 디버깅 출력
 		local data = { user_id = player.UserId } -- 서버로 전송할 데이터
 		local success, response = sendRequest(gptApiUrl .. "/more-new", data)
-
 		if success then
 			local decodedResponse = nil
 			local decodeSuccess, decodeError = pcall(function()
 				decodedResponse = HttpService:JSONDecode(response)
 			end)
-
 			if decodeSuccess and decodedResponse then
 				local responseMessage = decodedResponse.message or "추가 설명을 가져오는 데 실패했습니다."
 				print("서버 응답 메시지:", responseMessage) -- 디버깅용 출력
@@ -142,7 +133,6 @@ local function handleMoreCommand(player, quizId)
 		print("퀴즈 ID에 대한 설명 요청:", quizId) -- 디버깅용 출력
 		local data = { user_id = player.UserId, quiz_id = quizId }
 		local success, response = sendRequest(gptApiUrl .. "/more", data)
-
 		if success then
 			local decodedResponse = HttpService:JSONDecode(response)
 			local responseMessage = decodedResponse.message or "해당 문제에 대한 설명이 없습니다."
@@ -155,31 +145,27 @@ local function handleMoreCommand(player, quizId)
 	end
 end
 
+-- 유닛 번호에 따른 틀린 퀴즈 목록 제공
 local function handleStudyCommand(player, args)
 	-- 유닛 번호를 그대로 사용 (숫자인지 확인하지 않음)
-	local unit_number = args
-
-	-- unit_number가 nil이 아니면
+	local unit_number = args -- unit_number가 nil이 아니면
 	if unit_number then
-		local data = {
-			user_id = player.UserId,
-			unit_number = unit_number  -- 그대로 전달
+		local data = { user_id = player.UserId, unit_number = unit_number -- 그대로 전달
 		}
-
 		local success, response = sendRequest(mainApiUrl .. "/get-wrong-questions", data)
-
 		if success then
 			local decodedResponse = game:GetService("HttpService"):JSONDecode(response)
-
 			if decodedResponse.message then
 				-- '틀린 문제가 없습니다'와 같은 메시지를 받으면
 				MoreResponseRemote:FireClient(player, "틀린 문제가 없습니다.")
 			else
 				-- 틀린 문제를 받았다면
-				local message = "틀린 문제 목록:\n"
+				local message = "틀린 문제 목록: "
+				local questionList = {}
 				for _, question in ipairs(decodedResponse) do
-					message = message .. "퀴즈 타입: " .. question.quiz_type .. ", 퀴즈 ID: " .. question.quiz_id .. "\n"
+					table.insert(questionList, "퀴즈 타입: " .. question.quiz_type .. ", 퀴즈 ID: " .. question.quiz_id .. "\n")
 				end
+				message = message .. table.concat(questionList, " ")
 				MoreResponseRemote:FireClient(player, message)
 			end
 		else
@@ -190,31 +176,28 @@ local function handleStudyCommand(player, args)
 	end
 end
 
+-- 유닛 번호에 따른 퀴즈 목록 제공
 local function handleQuizCommand(player, args)
 	-- 유닛 번호를 명령 인수에서 추출
-	local unit_number = args
-
-	-- unit_number가 존재하면 서버에 요청 보내기
+	local unit_number = args -- unit_number가 존재하면 서버에 요청 보내기
 	if unit_number then
-		local data = {
-			unit_number = unit_number  -- 유닛 번호 전달
+		local data = { unit_number = unit_number -- 유닛 번호 전달
 		}
-
 		-- 서버에 요청 보내기
 		local success, response = sendRequest(mainApiUrl .. "/get-quiz", data)
-
 		if success then
 			local decodedResponse = game:GetService("HttpService"):JSONDecode(response)
-
 			if decodedResponse.message then
 				-- '해당 유닛에 퀴즈가 없습니다.' 메시지를 받으면
 				MoreResponseRemote:FireClient(player, decodedResponse.message)
 			else
 				-- 퀴즈를 받았다면
-				local message = "퀴즈 목록:\n"
+				local message = "퀴즈 목록: "
+				local quizList = {}
 				for _, quiz in ipairs(decodedResponse) do
-					message = message .. "퀴즈 ID: " .. quiz.quiz_id .. ", 질문: " .. quiz.question .. "\n"
+					table.insert(quizList, "퀴즈 ID: " .. quiz.quiz_id .. ", 질문: " .. quiz.question .. "\n")
 				end
+				message = message .. table.concat(quizList, " ")
 				MoreResponseRemote:FireClient(player, message)
 			end
 		else
@@ -226,7 +209,7 @@ local function handleQuizCommand(player, args)
 end
 
 
--- handleAddQuizCommand 수정: 퀴즈 추가 요청
+-- 추가 퀴즈 제공
 local function handleAddQuizCommand(player, quizId, difficulty)
 	local data = { user_id = player.UserId, quiz_id = quizId, difficulty_level = difficulty }
 	local success, response = sendRequest(gptApiUrl .. "/add-quiz", data)
@@ -243,7 +226,7 @@ local function handleAddQuizCommand(player, quizId, difficulty)
 	end
 end
 
--- 퀴즈 정답 확인 요청 함수
+-- 추가 퀴즈 정답 확인
 local function handleCheckAnswer(player)
 	local data = { user_id = player.UserId }
 	local success, response = sendRequest(mainApiUrl .. "/check-answer", data)
@@ -307,4 +290,3 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 
 end)
-
